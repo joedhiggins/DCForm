@@ -449,7 +449,7 @@
         id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         type,
         timestamp: toLocalInputDateTime(new Date()),
-        alert: false,
+        alert: null,
         screenshot: false,
         troubleTicket: false,
         notes: '',
@@ -486,13 +486,13 @@
       return `<div class="field"><label for="evtTimestamp">Timestamp</label><input id="evtTimestamp" type="datetime-local" value="${escapeAttr(ts)}" /></div>`;
     }
 
-    function renderBoolSegment(name, label, active) {
+    function renderBoolSegment(name, label, value) {
       return `
         <div class="field">
           <span class="label">${escapeHtml(label)}</span>
           <div class="segmented" data-segment="${name}">
-            <button type="button" class="${active ? 'active' : ''}" data-value="true">Yes</button>
-            <button type="button" class="${!active ? 'active' : ''}" data-value="false">No</button>
+            <button type="button" class="${value === true ? 'active' : ''}" data-value="true">Yes</button>
+            <button type="button" class="${value === false ? 'active' : ''}" data-value="false">No</button>
           </div>
         </div>
       `;
@@ -519,7 +519,7 @@
         <div class="field"><span class="label">Acknowledged?</span>
           <div class="segmented" data-segment="commAck">
             <button type="button" class="${d.ack === true ? 'active' : ''}" data-value="true">Yes</button>
-            <button type="button" class="${d.ack !== true ? 'active' : ''}" data-value="false">No</button>
+            <button type="button" class="${d.ack === false ? 'active' : ''}" data-value="false">No</button>
           </div>
         </div>
       `;
@@ -533,8 +533,10 @@
           return '';
         case 'communication':
           return `
-            <div class="field"><label for="commMethod">Method</label>
-              <select id="commMethod">${selectOptions(['Text','PTT','Image','Video','Other'], d.method || 'Text')}</select>
+            <div class="field"><span class="label">Method</span>
+              <div class="segmented" data-segment="commMethod">
+                ${['Text','PTT','Image','Video','Other'].map(opt => `<button type="button" class="${(d.method || 'Text') === opt ? 'active' : ''}" data-value="${opt}">${opt}</button>`).join('')}
+              </div>
             </div>
             <div class="field"><span class="label">Send / Receive</span>
               <div class="segmented" data-segment="commDirection">
@@ -573,7 +575,11 @@
             <div class="field"><label for="routePushWhere">To what point</label><input id="routePushWhere" value="${escapeAttr(d.destination || '')}" /></div>
           `;
         case 'mission_marker':
-          return `<div class="field"><label for="missionMarkerKind">Marker</label><select id="missionMarkerKind">${selectOptions(['Mission start','Mission end'], d.kind || 'Mission start')}</select></div>`;
+          return `<div class="field"><span class="label">Marker</span>
+            <div class="segmented" data-segment="missionMarkerKind">
+              ${['Mission start','Mission end'].map(opt => `<button type="button" class="${(d.kind || 'Mission start') === opt ? 'active' : ''}" data-value="${opt}">${opt}</button>`).join('')}
+            </div>
+          </div>`;
         default:
           return '';
       }
@@ -590,16 +596,16 @@
             const init = document.getElementById('commInitiator');
             if (init) init.value = btn.dataset.value === 'Send' ? defaultInitiator('Send') : (init.value || '');
           }
+          if (seg.dataset.segment === 'commMethod') {
+            const pttWrap = document.getElementById('pttIssueWrap');
+            if (pttWrap) pttWrap.classList.toggle('hidden', btn.dataset.value !== 'PTT');
+          }
         });
       });
       if (type === 'communication') {
-        const method = document.getElementById('commMethod');
-        const pttWrap = document.getElementById('pttIssueWrap');
         const issue = document.getElementById('commPttIssue');
         const block = document.getElementById('pttIssueBlock');
-        const updatePttWrap = () => { pttWrap.classList.toggle('hidden', method.value !== 'PTT'); };
         const updatePttBlock = () => { block.classList.toggle('hidden', !issue.checked); };
-        method.addEventListener('change', updatePttWrap);
         issue.addEventListener('change', updatePttBlock);
         document.querySelectorAll('[data-recent]').forEach(btn => btn.addEventListener('click', () => {
           document.getElementById('commRecipients').value = btn.dataset.recent;
@@ -614,15 +620,15 @@
       const troubleEl = document.getElementById('evtTrouble');
       event.troubleTicket = troubleEl ? troubleEl.checked : false;
       event.notes = document.getElementById('evtNotes').value.trim();
-      event.alert = ALERT_TYPES.has(event.type) ? getSegmentBool('alert') : false;
+      event.alert = ALERT_TYPES.has(event.type) ? getSegmentValueNullableBool('alert') : null;
       const d = {};
       switch (event.type) {
         case 'communication':
-          d.method = document.getElementById('commMethod').value;
+          d.method = getSegmentValue('commMethod') || 'Text';
           d.direction = getSegmentValue('commDirection');
           d.initiator = document.getElementById('commInitiator').value.trim();
           d.recipients = document.getElementById('commRecipients').value.trim();
-          d.ack = getSegmentBool('commAck');
+          d.ack = getSegmentValueNullableBool('commAck');
           d.pttIssue = document.getElementById('commPttIssue') ? document.getElementById('commPttIssue').checked : false;
           d.volume = document.getElementById('commVolume') ? document.getElementById('commVolume').value : '';
           d.clarity = document.getElementById('commClarity') ? document.getElementById('commClarity').value : '';
@@ -645,7 +651,7 @@
           d.destination = document.getElementById('routePushWhere').value.trim();
           break;
         case 'mission_marker':
-          d.kind = document.getElementById('missionMarkerKind').value;
+          d.kind = getSegmentValue('missionMarkerKind') || 'Mission start';
           break;
       }
       event.details = d;
@@ -704,11 +710,13 @@
 
     function renderEventBadges(ev) {
       const badges = [];
-      if (ev.alert) badges.push('<span class="badge">Alert</span>');
+      if (ev.alert === true) badges.push('<span class="badge">Alert: Yes</span>');
+      if (ev.alert === false) badges.push('<span class="badge">Alert: No</span>');
       if (ev.screenshot) badges.push('<span class="badge">Screenshot</span>');
       if (ev.troubleTicket) badges.push('<span class="badge">Ticket</span>');
       if (ev.type === 'communication' && ev.details.direction) badges.push(`<span class="badge">${escapeHtml(ev.details.direction)}</span>`);
-      if (ev.type === 'communication' && ev.details.ack === true) badges.push('<span class="badge">Ack</span>');
+      if (ev.type === 'communication' && ev.details.ack === true) badges.push('<span class="badge">Ack: Yes</span>');
+      if (ev.type === 'communication' && ev.details.ack === false) badges.push('<span class="badge">Ack: No</span>');
       return badges.join('');
     }
 
@@ -737,7 +745,7 @@
         mission: state.meta.mission, date: state.meta.date,
         dataCollector: state.meta.dataCollector, observedUser: state.meta.observedUser, role: state.meta.role,
         timestamp: ev.timestamp, type: existingLabelFor(ev.type),
-        alert: ev.alert ? 'Y' : 'N', screenshot: ev.screenshot ? 'Y' : 'N', troubleTicket: ev.troubleTicket ? 'Y' : 'N',
+        alert: ev.alert === true ? 'Y' : (ev.alert === false ? 'N' : 'NA'), screenshot: ev.screenshot ? 'Y' : 'N', troubleTicket: ev.troubleTicket ? 'Y' : 'N',
         summary: buildEventSummary(ev), notes: ev.notes || '', detailsJson: JSON.stringify(ev.details || {}),
       }));
       const headers = ['mission','date','dataCollector','observedUser','role','timestamp','type','alert','screenshot','troubleTicket','summary','notes','detailsJson'];
@@ -801,6 +809,7 @@
     }
     function getSegmentValue(name) { const active = document.querySelector(`[data-segment="${name}"] button.active`); return active ? active.dataset.value : null; }
     function getSegmentBool(name) { return getSegmentValue(name) === 'true'; }
+    function getSegmentValueNullableBool(name) { const v = getSegmentValue(name); if (v === 'true') return true; if (v === 'false') return false; return null; }
     function toLocalInputDateTime(date) {
       const pad = n => String(n).padStart(2, '0');
       return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
