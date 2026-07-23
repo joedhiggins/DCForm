@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Radio Comms Collector</title>
+<style>
+:root{
+  --text-xs: clamp(0.7rem, 0.66rem + 0.2vw, 0.8rem);
+  --text-sm: clamp(0.82rem, 0.78rem + 0.3vw, 0.95rem);
+  --text-base: clamp(0.95rem, 0.9rem + 0.25vw, 1.05rem);
+  --text-lg: clamp(1.05rem, 0.95rem + 0.6vw, 1.25rem);
+  --space-1:0.25rem; --space-2:0.5rem; --space-3:0.75rem; --space-4:1rem; --space-5:1.25rem; --space-6:1.5rem; --space-8:2rem;
+  --radius-sm:0.375rem; --radius-md:0.6rem; --radius-lg:0.85rem; --radius-xl:1.1rem; --radius-full:9999px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.08); --shadow-md:0 10px 24px rgba(0,0,0,.08);
+  --transition:160ms cubic-bezier(0.16,1,0.3,1);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+:root, [data-theme="light"]{
+  --color-bg:#f7f6f2; --color-surface:#f9f8f5; --color-surface-2:#ffffff; --color-surface-offset:#edeae5;
+  --color-border:#d4d1ca; --color-divider:#dcd9d5; --color-text:#28251d; --color-text-muted:#6f6c66; --color-text-faint:#9a978f;
+  --color-primary:#01696f; --color-primary-hover:#0c4e54; --color-primary-highlight:#d7ecea;
+  --color-warning:#a05a1a; --color-warning-highlight:#f7e9db; --color-error:#a13544; --color-error-highlight:#f5e2e5;
+  --color-success:#437a22; --color-success-highlight:#e1edd9;
+}
+[data-theme="dark"]{
+  --color-bg:#171614; --color-surface:#1c1b19; --color-surface-2:#201f1d; --color-surface-offset:#22211f;
+  --color-border:#393836; --color-divider:#262523; --color-text:#cdccca; --color-text-muted:#9a9895; --color-text-faint:#6a6864;
+  --color-primary:#4f98a3; --color-primary-hover:#227f8b; --color-primary-highlight:#223333;
+  --color-warning:#bb653b; --color-warning-highlight:#3a2c22; --color-error:#d163a7; --color-error-highlight:#3a2530;
+  --color-success:#6daa45; --color-success-highlight:#24301c;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--color-bg);color:var(--color-text);-webkit-text-size-adjust:100%;}
+body{font-size:var(--text-base);line-height:1.4;}
+button,input,select,textarea{font:inherit;color:inherit;}
+button{border:0;background:none;cursor:pointer;transition:background var(--transition),border-color var(--transition),box-shadow var(--transition);}
+input,select,textarea{width:100%;border:1px solid rgba(40,37,29,.14);border-radius:var(--radius-md);background:var(--color-surface-2);padding:0.7rem 0.8rem;min-height:44px;}
+textarea{min-height:90px;resize:vertical;}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px;}
+.app{max-width:720px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;padding-bottom:calc(84px + var(--safe-bottom));}
+.topbar{position:sticky;top:0;z-index:10;background:color-mix(in srgb, var(--color-bg) 92%, white 8%);backdrop-filter:blur(10px);border-bottom:1px solid rgba(40,37,29,.08);padding:calc(var(--space-2) + env(safe-area-inset-top, 0px)) var(--space-3) var(--space-2);}
+.topbar-row{display:flex;gap:var(--space-2);}
+.topbar-row .smallbtn{flex:1 1 0;min-height:38px;padding:0.4rem 0.3rem;border-radius:var(--radius-md);border:1px solid rgba(40,37,29,.1);background:var(--color-surface-2);font-size:var(--text-xs);font-weight:700;text-align:center;white-space:nowrap;}
+.statusbar{display:flex;gap:var(--space-2);margin-top:var(--space-2);justify-content:space-between;}
+.statuspill{padding:0.25rem 0.55rem;border-radius:var(--radius-full);background:var(--color-surface-2);border:1px solid rgba(40,37,29,.08);font-size:var(--text-xs);color:var(--color-text-muted);flex:1 1 0;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.btn{min-height:46px;width:100%;border-radius:var(--radius-md);padding:0.8rem 0.9rem;background:var(--color-surface-2);border:1px solid rgba(40,37,29,.08);box-shadow:var(--shadow-sm);text-align:center;font-weight:600;font-size:var(--text-sm);}
+.btn.primary{background:var(--color-primary);color:#fff;border-color:var(--color-primary);}
+.btn.secondary{background:var(--color-surface);}
+.btn.danger{background:var(--color-error);color:#fff;}
+.btnrow{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);}
+.screen{display:none;padding:var(--space-3);gap:var(--space-3);}
+.screen.active{display:flex;flex-direction:column;}
+.card{background:var(--color-surface);border:1px solid rgba(40,37,29,.08);border-radius:var(--radius-xl);box-shadow:var(--shadow-sm);padding:var(--space-3) var(--space-4);}
+.card h2,.card h3{margin:0 0 var(--space-2);font-size:var(--text-lg);line-height:1.15;}
+.card p{margin:0;color:var(--color-text-muted);font-size:var(--text-sm);}
+.formgrid{display:grid;gap:var(--space-3);}
+.field label,.label{display:block;margin-bottom:0.3rem;font-size:var(--text-sm);font-weight:700;}
+.field .hint{margin-top:.3rem;color:var(--color-text-muted);font-size:var(--text-xs);}
+.segmented{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:var(--space-2);}
+.segmented button,.recent-chip{min-height:42px;border-radius:var(--radius-md);border:1px solid rgba(40,37,29,.08);background:var(--color-surface-2);padding:0.55rem 0.5rem;font-size:var(--text-sm);white-space:nowrap;}
+.segmented button.active,.recent-chip.active{background:var(--color-primary-highlight);border-color:rgba(1,105,111,.25);color:var(--color-primary-hover);font-weight:700;}
+.toggle{display:flex;align-items:center;gap:var(--space-2);min-height:44px;padding:0.6rem 0.75rem;border-radius:var(--radius-md);border:1px solid rgba(40,37,29,.08);background:var(--color-surface-2);}
+.toggle input{width:18px;height:18px;min-height:18px;margin:0;}
+.event-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-2);}
+.event-card{text-align:left;padding:var(--space-3);border-radius:var(--radius-lg);border:1px solid rgba(40,37,29,.08);background:var(--color-surface-2);min-height:62px;display:flex;align-items:center;box-shadow:var(--shadow-sm);font-size:var(--text-sm);font-weight:700;}
+.event-card.note{background:var(--color-primary-highlight);border-color:rgba(1,105,111,.18);}
+.badge-row{display:flex;gap:var(--space-2);flex-wrap:wrap;margin-top:var(--space-2);}
+.badge{display:inline-flex;align-items:center;gap:.35rem;padding:0.3rem 0.5rem;border-radius:var(--radius-full);font-size:var(--text-xs);background:var(--color-surface-offset);color:var(--color-text-muted);border:1px solid rgba(40,37,29,.06);}
+.summary{display:grid;gap:var(--space-2);font-size:var(--text-sm);}
+.summary div{display:flex;justify-content:space-between;gap:var(--space-3);border-bottom:1px dashed rgba(40,37,29,.08);padding-bottom:.4rem;}
+.summary div span:last-child{color:var(--color-text-muted);text-align:right;}
+.list{display:grid;gap:var(--space-2);}
+.event-item{border-radius:var(--radius-lg);background:var(--color-surface-2);border:1px solid rgba(40,37,29,.08);padding:var(--space-3);text-align:left;box-shadow:var(--shadow-sm);}
+.event-head{display:flex;align-items:start;justify-content:space-between;gap:var(--space-2);margin-bottom:var(--space-1);}
+.event-head strong{display:block;font-size:var(--text-sm);}
+.event-head time{color:var(--color-text-muted);font-size:var(--text-xs);}
+.event-item p{margin:0;font-size:var(--text-sm);color:var(--color-text);}
+.empty{padding:var(--space-6) var(--space-3);text-align:center;color:var(--color-text-muted);background:var(--color-surface);border-radius:var(--radius-xl);border:1px dashed rgba(40,37,29,.14);}
+.footer-nav{position:fixed;left:0;right:0;bottom:0;padding:var(--space-2) var(--space-3) calc(var(--space-2) + var(--safe-bottom));background:color-mix(in srgb, var(--color-bg) 94%, white 6%);backdrop-filter:blur(10px);border-top:1px solid rgba(40,37,29,.08);}
+.footer-nav-inner{max-width:720px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2);}
+.navbtn{min-height:46px;border-radius:var(--radius-lg);padding:0.4rem 0.3rem;background:var(--color-surface-2);border:1px solid rgba(40,37,29,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.1rem;font-size:10px;color:var(--color-text-muted);}
+.navbtn.active{background:var(--color-primary-highlight);color:var(--color-primary-hover);font-weight:700;border-color:rgba(1,105,111,.25);}
+.navbtn svg{width:18px;height:18px;}
+.hidden{display:none!important;}
+.divider{height:1px;background:var(--color-divider);margin:var(--space-2) 0;}
+.recent-wrap{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-2);}
+.note-box{background:var(--color-surface-2);border:1px solid rgba(40,37,29,.08);border-radius:var(--radius-md);padding:var(--space-3);}
+@media (max-width:420px){.btnrow{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+  <div class="topbar-row">
+    <button class="smallbtn" id="importBtn" type="button">Imp JSON</button>
+    <button class="smallbtn" id="exportJsonBtn" type="button">Exp JSON</button>
+    <input id="importFileInput" type="file" accept="application/json,.json" class="hidden">
+  </div>
+  <div class="statusbar" id="statusBar"></div>
+</header>
+
+<main>
+<section class="screen active" id="screen-setup">
+  <div class="card">
+    <div class="formgrid">
+      <div class="field"><label for="metaCollector">Data collector</label><input id="metaCollector" autocomplete="name"></div>
+      <div class="field"><label for="metaDate">Date</label><input id="metaDate" type="date"></div>
+      <div class="field"><label for="metaSite">Test site name</label><input id="metaSite" placeholder="e.g. Range 4"></div>
+      <div class="field"><label for="metaLocation">Location (lat/long or MGRS)</label><input id="metaLocation" placeholder="e.g. 35.02N 106.58W or MGRS grid"></div>
+      <div class="field"><label for="metaUser">Observed user</label><input id="metaUser"></div>
+      <div class="field"><label for="metaRole">User role</label><input id="metaRole" placeholder="e.g. Mobile, Command, RTO"></div>
+      <div class="field"><label for="metaNotes">Notes (optional)</label><textarea id="metaNotes" placeholder="Setup notes"></textarea></div>
+    </div>
+    <div class="divider"></div>
+    <div class="btnrow">
+      <button class="btn secondary" id="clearMissionBtn" type="button">New blank session</button>
+      <button class="btn primary" id="goToEventsBtn" type="button">Go to event grid</button>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="screen-events">
+  <div class="event-grid" id="eventGrid"></div>
+</section>
+
+<section class="screen" id="screen-form">
+  <div class="card">
+    <div class="formgrid" id="eventFormFields"></div>
+    <div class="divider"></div>
+    <div class="btnrow">
+      <button class="btn secondary" id="cancelEventBtn" type="button">Cancel</button>
+      <button class="btn primary" id="saveEventBtn" type="button">Save event</button>
+    </div>
+    <div style="margin-top:.6rem"><button class="btn danger hidden" id="deleteEventBtn" type="button">Delete event</button></div>
+  </div>
+</section>
+
+<section class="screen" id="screen-history">
+  <div id="historyContainer"></div>
+</section>
+
+<section class="screen" id="screen-summary">
+  <div class="card"><div class="summary" id="summaryBlock"></div></div>
+</section>
+</main>
+
+<nav class="footer-nav" aria-label="Primary">
+  <div class="footer-nav-inner">
+    <button class="navbtn active" type="button" data-screen="setup">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h6"/></svg>
+      <span>Setup</span>
+    </button>
+    <button class="navbtn" type="button" data-screen="events">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M7 4v16M17 4v16"/></svg>
+      <span>Events</span>
+    </button>
+    <button class="navbtn" type="button" data-screen="history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h10v12H8z"/><path d="M6 8H4v12h10v-2"/></svg>
+      <span>History</span>
+    </button>
+    <button class="navbtn" type="button" data-screen="summary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 19V9"/><path d="M12 19V5"/><path d="M19 19v-8"/></svg>
+      <span>Summary</span>
+    </button>
+  </div>
+</nav>
+</div>
+
+<script>
+const STORAGE_KEY = 'radioCommsCollectorV1';
+
+const eventTypeDefs = [
+  { type:'quicknote', label:'Quick note', note:true },
+  { type:'communication', label:'Communication' },
+  { type:'observation', label:'Observation / comment' },
+  { type:'techfailure', label:'Tech failure' },
+  { type:'missionmarker', label:'Mission marker' },
+];
+
+let state = createBlankSession();
+let currentScreen = 'setup';
+let editingEventId = null;
+let lastFormSnapshot = null;
+
+const els = {
+  screens: document.querySelectorAll('.screen'),
+  navBtns: document.querySelectorAll('.navbtn'),
+  statusBar: document.getElementById('statusBar'),
+  eventGrid: document.getElementById('eventGrid'),
+  historyContainer: document.getElementById('historyContainer'),
+  summaryBlock: document.getElementById('summaryBlock'),
+  eventFormFields: document.getElementById('eventFormFields'),
+  deleteEventBtn: document.getElementById('deleteEventBtn'),
+  importFileInput: document.getElementById('importFileInput'),
+  metaCollector: document.getElementById('metaCollector'),
+  metaDate: document.getElementById('metaDate'),
+  metaSite: document.getElementById('metaSite'),
+  metaLocation: document.getElementById('metaLocation'),
+  metaUser: document.getElementById('metaUser'),
+  metaRole: document.getElementById('metaRole'),
+  metaNotes: document.getElementById('metaNotes'),
+};
+
+function createBlankSession(){
+  const today = new Date();
+  return {
+    schemaVersion: 1,
+    missionId: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+    meta: {
+      dataCollector: '',
+      date: today.toISOString().slice(0,10),
+      testSiteName: '',
+      location: '',
+      observedUser: '',
+      role: '',
+      notes: '',
+    },
+    recentContacts: { sender: [], recipient: [] },
+    events: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function hydrate(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.meta && Array.isArray(parsed.events)) state = parsed;
+    }
+  } catch(err){ console.warn('Autosave load failed', err); }
+  bindMetaToInputs();
+  renderAll();
+}
+
+function autosave(){
+  state.updatedAt = new Date().toISOString();
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(err){ console.warn('Autosave failed', err); }
+  renderStatusBar();
+}
+
+function bindMetaToInputs(){
+  els.metaCollector.value = state.meta.dataCollector;
+  els.metaDate.value = state.meta.date;
+  els.metaSite.value = state.meta.testSiteName;
+  els.metaLocation.value = state.meta.location;
+  els.metaUser.value = state.meta.observedUser;
+  els.metaRole.value = state.meta.role || '';
+  els.metaNotes.value = state.meta.notes || '';
+}
+
+function collectMetaFromInputs(){
+  state.meta.dataCollector = els.metaCollector.value.trim();
+  state.meta.date = els.metaDate.value;
+  state.meta.testSiteName = els.metaSite.value.trim();
+  state.meta.location = els.metaLocation.value.trim();
+  state.meta.observedUser = els.metaUser.value.trim();
+  state.meta.role = els.metaRole.value;
+  state.meta.notes = els.metaNotes.value.trim();
+  autosave();
+}
+
+function setScreen(screen){
+  currentScreen = screen;
+  els.screens.forEach(s => s.classList.toggle('active', s.id === 'screen-' + screen));
+  els.navBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.screen === screen));
+  if (screen === 'history') renderHistory();
+  if (screen === 'summary') renderSummary();
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function renderStatusBar(){
+  els.statusBar.innerHTML = `
+    <span class="statuspill">Saved ${state.updatedAt ? formatDateTimeCompact(state.updatedAt) : '-'}</span>
+    <span class="statuspill">Events: ${state.events.length}</span>
+  `;
+}
+
+function renderEventGrid(){
+  els.eventGrid.innerHTML = eventTypeDefs.map(def => `
+    <button class="event-card ${def.note ? 'note' : ''}" type="button" data-type="${def.type}">${escapeHtml(def.label)}</button>
+  `).join('');
+  els.eventGrid.querySelectorAll('[data-type]').forEach(btn => {
+    btn.addEventListener('click', () => openEventForm(btn.dataset.type));
+  });
+}
+
+function baseEvent(type){
+  return {
+    id: (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(16).slice(2)),
+    type,
+    timestamp: toLocalInputDateTime(new Date()),
+    alert: null,
+    screenshot: false,
+    notes: '',
+    details: {},
+  };
+}
+
+function openEventForm(type, existingId = null){
+  editingEventId = existingId;
+  const event = existingId ? structuredClone(findEvent(existingId)) : baseEvent(type);
+  lastFormSnapshot = structuredClone(event);
+  renderEventForm(event);
+  setScreen('form');
+}
+
+const ALERT_TYPES = new Set(['communication']);
+
+function renderEventForm(event){
+  els.deleteEventBtn.classList.toggle('hidden', !editingEventId);
+  const html = [];
+  html.push(renderDateTimeField(event.timestamp));
+  html.push(renderSpecificFields(event));
+  if (ALERT_TYPES.has(event.type)) {
+    html.push(renderTriStateSegment('alert', 'Alert received?', event.alert));
+  }
+  html.push(renderNotesField(event.notes));
+  html.push(renderScreenshotToggle(event.screenshot));
+  els.eventFormFields.innerHTML = html.join('');
+  hookFormInteractivity(event.type);
+}
+
+function renderDateTimeField(ts){
+  return `<div class="field"><label for="evtTimestamp">Timestamp</label><input id="evtTimestamp" type="datetime-local" value="${escapeAttr(ts)}"></div>`;
+}
+
+function renderNotesField(notes){
+  return `<div class="field"><label for="evtNotes">Notes (optional)</label><textarea id="evtNotes" placeholder="Optional note">${escapeHtml(notes)}</textarea></div>`;
+}
+
+function renderScreenshotToggle(screenshot){
+  return `<label class="toggle"><input type="checkbox" id="evtScreenshot" ${screenshot ? 'checked' : ''}><span>Screenshot taken</span></label>`;
+}
+
+function renderTriStateSegment(name, label, value){
+  return `
+    <div class="field">
+      <span class="label">${escapeHtml(label)}</span>
+      <div class="segmented" data-segment="${name}">
+        <button type="button" class="${value === true ? 'active' : ''}" data-value="true">Yes</button>
+        <button type="button" class="${value === false ? 'active' : ''}" data-value="false">No</button>
+        <button type="button" class="${value === null || value === undefined ? 'active' : ''}" data-value="null">N/A</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderSpecificFields(event){
+  const d = event.details;
+  const recentSenders = state.recentContacts.sender.slice(0,5);
+  const recentRecipients = state.recentContacts.recipient.slice(0,5);
+  switch(event.type){
+    case 'quicknote':
+      return '';
+    case 'communication':
+      return `
+        <div class="field">
+          <label for="commSender">Sender</label>
+          <input id="commSender" value="${escapeAttr(d.sender || '')}" placeholder="Name or callsign">
+          ${recentSenders.length ? `<div class="recent-wrap">${recentSenders.map(name => `<button type="button" class="recent-chip" data-recent-sender="${escapeAttr(name)}">${escapeHtml(name)}</button>`).join('')}</div>` : ''}
+        </div>
+        <div class="field">
+          <label for="commRecipient">Recipient</label>
+          <input id="commRecipient" value="${escapeAttr(d.recipient || '')}" placeholder="Name or callsign">
+          ${recentRecipients.length ? `<div class="recent-wrap">${recentRecipients.map(name => `<button type="button" class="recent-chip" data-recent-recipient="${escapeAttr(name)}">${escapeHtml(name)}</button>`).join('')}</div>` : ''}
+        </div>
+        ${renderTriStateSegment('commAck', 'Message acknowledged?', d.ack)}
+      `;
+    case 'observation':
+      return '';
+    case 'techfailure':
+      return `
+        <div class="field"><label for="techFailureType">Failure type</label><input id="techFailureType" value="${escapeAttr(d.failureType || '')}" placeholder="e.g. Radio failure, antenna, battery"></div>
+        <div class="field"><label for="techImpact">Impact</label><input id="techImpact" value="${escapeAttr(d.impact || '')}" placeholder="What happened / operational effect"></div>
+      `;
+    case 'missionmarker':
+      return `
+        <div class="field">
+          <span class="label">Marker</span>
+          <div class="segmented" data-segment="missionMarkerKind">
+            <button type="button" class="${d.kind === 'Mission start' ? 'active' : ''}" data-value="Mission start">Start</button>
+            <button type="button" class="${d.kind === 'Mission end' ? 'active' : ''}" data-value="Mission end">End</button>
+            <button type="button" class="${d.kind === 'Custom' ? 'active' : ''}" data-value="Custom">Custom</button>
+          </div>
+        </div>
+        <div class="field ${d.kind === 'Custom' ? '' : 'hidden'}" id="customMarkerWrap">
+          <label for="customMarkerLabel">Custom marker label</label>
+          <input id="customMarkerLabel" value="${escapeAttr(d.customLabel || '')}" placeholder="Describe the marker">
+        </div>
+      `;
+    default:
+      return '';
+  }
+}
+
+function hookFormInteractivity(type){
+  document.querySelectorAll('[data-segment]').forEach(seg => {
+    seg.addEventListener('click', e => {
+      const btn = e.target.closest('button[data-value]');
+      if (!btn) return;
+      [...seg.querySelectorAll('button')].forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (seg.dataset.segment === 'missionMarkerKind') {
+        const wrap = document.getElementById('customMarkerWrap');
+        if (wrap) wrap.classList.toggle('hidden', btn.dataset.value !== 'Custom');
+      }
+    });
+  });
+  document.querySelectorAll('[data-recent-sender]').forEach(btn => {
+    btn.addEventListener('click', () => { document.getElementById('commSender').value = btn.dataset.recentSender; });
+  });
+  document.querySelectorAll('[data-recent-recipient]').forEach(btn => {
+    btn.addEventListener('click', () => { document.getElementById('commRecipient').value = btn.dataset.recentRecipient; });
+  });
+}
+
+function gatherCurrentFormEvent(){
+  const event = editingEventId ? structuredClone(findEvent(editingEventId)) : structuredClone(lastFormSnapshot);
+  event.timestamp = document.getElementById('evtTimestamp').value;
+  event.notes = document.getElementById('evtNotes').value.trim();
+  event.screenshot = document.getElementById('evtScreenshot').checked;
+  event.alert = ALERT_TYPES.has(event.type) ? getSegmentTriState('alert') : null;
+
+  const d = {};
+  switch(event.type){
+    case 'communication':
+      d.sender = document.getElementById('commSender').value.trim();
+      d.recipient = document.getElementById('commRecipient').value.trim();
+      d.ack = getSegmentTriState('commAck');
+      break;
+    case 'techfailure':
+      d.failureType = document.getElementById('techFailureType').value.trim();
+      d.impact = document.getElementById('techImpact').value.trim();
+      break;
+    case 'missionmarker':
+      d.kind = getSegmentValue('missionMarkerKind') || 'Mission start';
+      if (d.kind === 'Custom') d.customLabel = document.getElementById('customMarkerLabel').value.trim();
+      break;
+    default:
+      break;
+  }
+  event.details = d;
+  return event;
+}
+
+function saveCurrentEvent(){
+  const event = gatherCurrentFormEvent();
+  if (!event.timestamp) { alert('Timestamp is required.'); return; }
+  if (editingEventId) {
+    const idx = state.events.findIndex(e => e.id === editingEventId);
+    if (idx >= 0) state.events[idx] = event;
+  } else {
+    state.events.push(event);
+  }
+  if (event.type === 'communication') {
+    if (event.details.sender) {
+      state.recentContacts.sender = [event.details.sender, ...state.recentContacts.sender.filter(x => x !== event.details.sender)].slice(0,5);
+    }
+    if (event.details.recipient) {
+      state.recentContacts.recipient = [event.details.recipient, ...state.recentContacts.recipient.filter(x => x !== event.details.recipient)].slice(0,5);
+    }
+  }
+  autosave();
+  renderAll();
+  editingEventId = null;
+  setScreen('history');
+}
+
+function deleteCurrentEvent(){
+  if (!editingEventId) return;
+  if (!confirm('Delete this event?')) return;
+  state.events = state.events.filter(e => e.id !== editingEventId);
+  autosave();
+  renderAll();
+  editingEventId = null;
+  setScreen('history');
+}
+
+function renderHistory(){
+  if (!state.events.length) {
+    els.historyContainer.innerHTML = '<div class="empty">No events yet.</div>';
+    return;
+  }
+  const sorted = [...state.events].sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+  els.historyContainer.innerHTML = `<div class="list">${sorted.map(ev => `
+    <button class="event-item" type="button" data-edit-id="${ev.id}">
+      <div class="event-head">
+        <div><strong>${escapeHtml(labelForType(ev.type))}</strong><time>${escapeHtml(formatEventTime(ev.timestamp))}</time></div>
+      </div>
+      <div class="badge-row">${renderEventBadges(ev)}</div>
+      <p>${escapeHtml(buildEventSummary(ev))}</p>
+    </button>
+  `).join('')}</div>`;
+  els.historyContainer.querySelectorAll('[data-edit-id]').forEach(btn => {
+    btn.addEventListener('click', () => openEventForm(findEvent(btn.dataset.editId).type, btn.dataset.editId));
+  });
+}
+
+function renderEventBadges(ev){
+  const badges = [];
+  if (ev.alert === true) badges.push('<span class="badge">Alert: Yes</span>');
+  if (ev.alert === false) badges.push('<span class="badge">Alert: No</span>');
+  if (ev.screenshot) badges.push('<span class="badge">Screenshot</span>');
+  if (ev.type === 'communication' && ev.details.ack === true) badges.push('<span class="badge">Ack: Yes</span>');
+  if (ev.type === 'communication' && ev.details.ack === false) badges.push('<span class="badge">Ack: No</span>');
+  return badges.join('');
+}
+
+function renderSummary(){
+  const latest = [...state.events].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0,5);
+  const items = [
+    ['Test site', state.meta.testSiteName],
+    ['Location', state.meta.location],
+    ['Data collector', state.meta.dataCollector],
+    ['Observed user', state.meta.observedUser],
+    ['Role', state.meta.role],
+    ['Date', state.meta.date],
+    ['Event count', String(state.events.length)],
+  ];
+  const recentHtml = latest.length ? latest.map(ev => `
+    <div><span>${escapeHtml(formatEventTime(ev.timestamp))} - ${escapeHtml(labelForType(ev.type))}</span><span>${escapeHtml(buildEventSummary(ev))}</span></div>
+  `).join('') : '<div><span>Recent events</span><span>None yet</span></div>';
+  els.summaryBlock.innerHTML = items.map(([k,v]) => `<div><span>${escapeHtml(k)}</span><span>${escapeHtml(v || '-')}</span></div>`).join('') + recentHtml;
+}
+
+function exportJson(){
+  collectMetaFromInputs();
+  downloadBlob(JSON.stringify(state, null, 2), buildFileBase() + '.json', 'application/json');
+}
+
+function handleImport(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      if (!parsed || !parsed.meta || !Array.isArray(parsed.events)) throw new Error('Invalid session file');
+      state = parsed;
+      if (!state.recentContacts) state.recentContacts = { sender: [], recipient: [] };
+      bindMetaToInputs();
+      autosave();
+      renderAll();
+      setScreen('history');
+    } catch(err) {
+      alert('Import failed. Use a JSON export from this app.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function clearMission(){
+  if (!confirm('Clear current session and start a blank one? Export first if needed.')) return;
+  state = createBlankSession();
+  bindMetaToInputs();
+  autosave();
+  renderAll();
+  setScreen('setup');
+}
+
+function renderAll(){
+  renderStatusBar();
+  renderEventGrid();
+  renderHistory();
+  renderSummary();
+}
+
+function buildEventSummary(ev){
+  const d = ev.details;
+  switch(ev.type){
+    case 'quicknote': return ev.notes || 'Quick note.';
+    case 'communication': return [d.sender, '->', d.recipient].filter(Boolean).join(' ') || 'Communication event.';
+    case 'observation': return ev.notes || 'Observation.';
+    case 'techfailure': return [d.failureType, d.impact].filter(Boolean).join(' - ') || 'Tech failure.';
+    case 'missionmarker': return d.kind === 'Custom' ? (d.customLabel || 'Custom marker') : (d.kind || 'Mission marker');
+    default: return ev.notes || 'Event.';
+  }
+}
+
+function labelForType(type){ return (eventTypeDefs.find(d => d.type === type) || {}).label || 'Event'; }
+
+function findEvent(id){ return state.events.find(e => e.id === id); }
+
+function getSegmentValue(name){
+  const active = document.querySelector(`[data-segment="${name}"] button.active`);
+  return active ? active.dataset.value : null;
+}
+
+function getSegmentTriState(name){
+  const v = getSegmentValue(name);
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  return null;
+}
+
+function toLocalInputDateTime(date){
+  const pad = n => String(n).padStart(2,'0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatEventTime(ts){
+  if (!ts) return '';
+  try { const d = new Date(ts); return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); } catch(err){ return ts; }
+}
+
+function formatDateTimeCompact(ts){
+  try { const d = new Date(ts); return d.toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}); } catch(err){ return ts; }
+}
+
+function downloadBlob(content, filename, type){
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function buildFileBase(){
+  const bits = [state.meta.date, state.meta.testSiteName, state.meta.observedUser]
+    .map(s => String(s || '').trim().replace(/[^a-z0-9-]/gi, '-').replace(/-+/g, '-').toLowerCase())
+    .filter(Boolean);
+  return bits.length ? bits.join('_') : 'radio-comms-session';
+}
+
+function escapeHtml(str){
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function escapeAttr(str){ return escapeHtml(str); }
+
+document.getElementById('goToEventsBtn').addEventListener('click', () => { collectMetaFromInputs(); setScreen('events'); });
+document.getElementById('clearMissionBtn').addEventListener('click', clearMission);
+document.getElementById('saveEventBtn').addEventListener('click', saveCurrentEvent);
+document.getElementById('cancelEventBtn').addEventListener('click', () => setScreen('history'));
+document.getElementById('deleteEventBtn').addEventListener('click', deleteCurrentEvent);
+document.getElementById('exportJsonBtn').addEventListener('click', exportJson);
+document.getElementById('importBtn').addEventListener('click', () => els.importFileInput.click());
+els.importFileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) handleImport(file);
+  e.target.value = '';
+});
+els.navBtns.forEach(btn => btn.addEventListener('click', () => { collectMetaFromInputs(); setScreen(btn.dataset.screen); }));
+[els.metaCollector, els.metaDate, els.metaSite, els.metaLocation, els.metaUser, els.metaRole, els.metaNotes].forEach(el => {
+  el.addEventListener('change', collectMetaFromInputs);
+  el.addEventListener('blur', collectMetaFromInputs);
+});
+
+hydrate();
+</script>
+</body>
+</html>
