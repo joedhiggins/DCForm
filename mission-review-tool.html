@@ -172,6 +172,8 @@ function rebuild() {
         date: m.meta.date || '',
         team: m.meta.team || '',
         mission: m.meta.mission || '',
+        teamNumber: m.meta.team || '',
+        missionNumber: m.meta.mission || '',
         observedUser: m.meta.observedUser || '',
         role: m.meta.role || '',
         eventId: ev.id,
@@ -360,10 +362,10 @@ function formatTime(ts) { if (!ts) return '—'; try { const d = new Date(ts); r
 
 function exportJson(events, filename) { downloadBlob(JSON.stringify(events, null, 2), filename, 'application/json'); }
 function exportCsv(events, filename) {
-  const headers = ['sourceFile','missionId','dataCollector','date','team','mission','observedUser','role','eventId','type','timestamp','alert','screenshot','troubleTicket','notes','detailsJson'];
+  const headers = ['sourceFile','missionId','dataCollector','date','teamNumber','missionNumber','observedUser','role','eventId','type','timestamp','alert','screenshot','troubleTicket','notes','detailsJson'];
   const rows = events.map(e => ({
     sourceFile: e.sourceFile, missionId: e.missionId, dataCollector: e.dataCollector, date: e.date,
-    team: e.team, mission: e.mission, observedUser: e.observedUser, role: e.role, eventId: e.eventId,
+    teamNumber: e.team, missionNumber: e.mission, observedUser: e.observedUser, role: e.role, eventId: e.eventId,
     type: e.typeLabel, timestamp: e.timestamp,
     alert: e.alert === true ? 'Y' : (e.alert === false ? 'N' : 'NA'),
     screenshot: e.screenshot ? 'Y' : 'N', troubleTicket: e.troubleTicket ? 'Y' : 'N',
